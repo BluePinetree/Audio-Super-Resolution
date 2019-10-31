@@ -52,58 +52,7 @@ class VCTK:
         ds_hr.cache(self._get_cache_file())
         ds_lr.cache(self._get_cache_file())
         return ds_hr, ds_lr
-    """
-    def hr_dataset(self):
-        # 파일 경로들 불러오기 후 하나의 리스트에 담아오기
-        files = self._get_filepath()
-        print(files[0])
-        # 파일을 읽어 Dataset 객체로 가져오기
-        ds = self._audio_dataset(files)
-        # wav파일을 디코딩하고 data만 가져온다.
-        ds = ds.map(lambda x : tf.audio.decode_wav(x)[0], num_parallel_calls=AUTOTUNE)
-        # 미리 설정해놓은 최고 주파수로 줄인다.
-        ds = ds.map(lambda x : self._preprocess_hr_data(x), num_parallel_calls=AUTOTUNE)
-        return ds
 
-    def lr_dataset(self):
-        files = self._get_filepath()
-        ds = self._audio_dataset(files)
-        ds = ds.map(lambda x : tf.audio.decode_wav(x)[0], num_parallel_calls=AUTOTUNE)
-        ds = ds.map(self._preprocess_lr_data, num_parallel_calls=AUTOTUNE)
-        return ds
-
-    def _preprocess_hr_data(self, x):
-        x = tf.reshape(x, (-1,))
-        # x = x.numpy().ravel()
-        x = x[:len(x) - (len(x) % self.max_fs)]
-
-        scale_factor = int(len(x) / self.max_fs)
-        if scale_factor > 13:
-            half = scale_factor // 2
-            scaled_data = tf.py_function(signal.decimate, [x, half], tf.float32)
-            scaled_data = tf.py_function(signal.decimate, [scaled_data, 2], tf.float32)
-            # scaled_data = signal.decimate(x, half)
-            # scaled_data = signal.decimate(scaled_data, 2)
-        else:
-            scaled_data = tf.py_function(signal.decimate, [x, scale_factor], tf.float32)
-            # scaled_data = signal.decimate(x, scale_factor)
-
-        return scaled_data
-
-    def _preprocess_lr_data(self, x):
-        x = x.numpy().ravel()
-        x = x[:len(x) - (len(x) % self.lr_fs)]
-
-        scale_factor = len(x) / self.lr_fs
-        if scale_factor > 13:
-            half = scale_factor // 2
-            scaled_data = signal.decimate(x, half)
-            scaled_data = signal.decimate(scaled_data, 2)
-        else:
-            scaled_data = signal.decimate(x, scale_factor)
-
-        return scaled_data
-    """
     def _get_filepath(self):
         print('Configuring filepaths...')
         en_path = []
