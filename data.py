@@ -49,9 +49,18 @@ class VCTK:
         print(files[0])
         # 파일을 읽어 Dataset 객체로 가져오기
         ds_hr, ds_lr = self._audio_dataset(files, self.data_dir)
-        ds_hr.cache(self._get_cache_file())
-        ds_lr.cache(self._get_cache_file())
-        return ds_hr, ds_lr
+
+        # HR, LR 데이터를 튜플로 묶어 random_cropping
+        ds = tf.data.Dataset.zip((ds_lr, ds_hr))
+        ds = ds.map(lambda lr, hr : random_cropping(lr, hr, scale=self.scale), num_parallel_calls=AUTOTUNE)
+
+        if not os.path.exists(self._get_cache_index()):
+            print(f'Caching decoded audios in {self._get_cache_file()}')
+            for _ in ds: pass
+            print(f'Cached decoded files in {self._get_cache_file()}')
+
+        ds = ds.prefetch(buffer_size=AUTOTUNE)
+        return ds
 
     def _get_filepath(self):
         print('Configuring filepaths...')
@@ -82,7 +91,7 @@ class VCTK:
     # 다운샘플링 함수
     def _decimate_audio(self, data, scale):
         if scale > 13:
-            half = scale // 2
+            half = scale / 2
             scaled_data = signal.decimate(data, half)
             scaled_data = signal.decimate(scaled_data, 2)
         else:
@@ -95,14 +104,15 @@ class VCTK:
         lr_list = []
 
         print(f'Preprocessing {self.subset} data...')
-        # for i, file in tqdm(enumerate(files)):
+        # for i, file in enumerate(tqdm(files)):
         for file in tqdm(files):
             rate, data = wavfile.read(file)
-            data = data[:len(data) - (len(data) % self.max_fs)]     # 나눠지게 자르고
+            # data = data[:len(data) - (len(data) % self.max_fs)]     # 나눠지게 자르고
             # 다운샘플링
             hr_factor = int(rate / self.max_fs)
             hr_data = self._decimate_audio(data, hr_factor)
             # Low Resolution 다운샘플링
+            hr_data = hr_data[:len(hr_data) - (len(hr_data) % self.scale)]  # 다시 나눠지게 잘라준다
             lr_data = self._decimate_audio(hr_data, self.scale)
 
             # # Check
@@ -155,3 +165,16 @@ class VCTK:
         ds_lr = tf.data.Dataset.from_generator(lr_datagen, tf.int16, tf.TensorShape([None]))
 
         return ds_hr, ds_lr
+
+
+def random_cropping(lr_data, hr_data, hr_crop_size=4000, scale=4):
+    lr_crop_size = hr_crop_size//scale
+    lr_shape = tf.shape(lr_data)[0]
+
+    lr_st_idx = tf.random.uniform(shape=(), maxval=lr_shape - lr_crop_size + 1, dtype=tf.dtypes.int32)
+    hr_st_idx = lr_st_idx * scale
+
+    lr_cropped = lr_data[lr_st_idx:lr_st_idx+lr_crop_size]
+    hr_cropped = hr_data[hr_st_idx:hr_st_idx+hr_crop_size]
+
+    return lr_cropped, hr_cropped
