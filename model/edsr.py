@@ -1,18 +1,18 @@
+import tensorflow as tf
 from functools import partial
-from tensorflow.python.keras.layers import Add, Conv1D, Input, Lambda
-from tensorflow.python.keras.models import Model
+from tensorflow.keras.layers import Add, Conv1D, Lambda, PReLU
+from tensorflow.keras import Input
+from tensorflow.keras.models import Model
+from model.common import pixel_shuffle, denormalize, normalize, normalize_1, denormalize_1
 
-from model.common import pixel_shuffle, denormalize, normalize
-
-def edsr(scale, num_filters=32, res_blocks=[9,9,9,5,5,5,3,3], res_block_scaling=None, normalize=False, summary=True):
+def edsr(scale, num_filters=32, res_blocks=[9,9,9,5,5,5,3,3], res_block_scaling=None, normalize_input=False, summary=True):
     assert type(res_blocks) == list, 'res_blocks should be list type'
 
     print(f'Number of Residual blocks {len(res_blocks)}')
 
-    x_in = Input(shape=[None, 1])
-    if normalize:
-        x_in = Lambda(normalize)(x_in)
-    x = b = Conv1D(num_filters, 9, padding='same')(x_in)
+    x_in = Input(shape=(None, 1))
+    x = Lambda(normalize, name='Normalize')(x_in)
+    x = b = Conv1D(num_filters, 9, padding='same')(x)
 
     # residual blocks
     for f in res_blocks:
@@ -23,6 +23,7 @@ def edsr(scale, num_filters=32, res_blocks=[9,9,9,5,5,5,3,3], res_block_scaling=
 
     x = upsample(x, scale, num_filters)
     x = Conv1D(1, 3, padding='same')(x)
+    x = Lambda(denormalize, name='Denormalize')(x)
 
     model = Model(x_in, x)
 
@@ -31,9 +32,9 @@ def edsr(scale, num_filters=32, res_blocks=[9,9,9,5,5,5,3,3], res_block_scaling=
 
     return model
 
-
 def residual_block(x_in, num_filters, f, scaling):
-    x = Conv1D(num_filters, f, padding='same', activation='relu')(x_in)
+    x = Conv1D(num_filters, f, padding='same')(x_in)
+    x = PReLU(alpha_initializer='zeros', shared_axes=[1])(x)
     x = Conv1D(num_filters, f, padding='same')(x)
     if scaling:
         x = Lambda(lambda x : x * scaling, name='res_scaling')(x)
