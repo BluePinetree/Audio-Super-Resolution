@@ -54,10 +54,10 @@ class VCTK:
         ds = tf.data.Dataset.zip((ds_lr, ds_hr))
         ds = ds.map(lambda lr, hr : random_cropping(lr, hr, scale=self.scale), num_parallel_calls=AUTOTUNE)
 
-        if not os.path.exists(self._get_cache_index()):
-            print(f'Caching decoded audios in {self._get_cache_file()}')
-            for _ in ds: pass
-            print(f'Cached decoded files in {self._get_cache_file()}')
+        # if not os.path.exists(self._get_cache_index()):
+        #     print(f'Caching decoded audios in {self._get_cache_file()}')
+        #     for _ in ds: pass
+        #     print(f'Cached decoded files in {self._get_cache_file()}')
 
         ds = ds.prefetch(buffer_size=AUTOTUNE)
         return ds
@@ -66,7 +66,7 @@ class VCTK:
         print('Configuring filepaths...')
         en_path = []
         for dir in self.data_ids:
-            data = [os.path.join(dir, file) for file in os.listdir(dir) if file[0] != '.']
+            data = [os.path.join(dir, file) for file in os.listdir(dir) if file[0] != '.' and file[-3:] == 'wav']
             print(f'There are {len(data)} files in {dir}...')
             en_path.extend(data)
         print('Finished!')
@@ -161,8 +161,8 @@ class VCTK:
 
         print(callable(hr_datagen), callable(lr_datagen))
 
-        ds_hr = tf.data.Dataset.from_generator(hr_datagen, tf.int16, tf.TensorShape([None]))
-        ds_lr = tf.data.Dataset.from_generator(lr_datagen, tf.int16, tf.TensorShape([None]))
+        ds_hr = tf.data.Dataset.from_generator(hr_datagen, tf.float32, tf.TensorShape([None]))
+        ds_lr = tf.data.Dataset.from_generator(lr_datagen, tf.float32, tf.TensorShape([None]))
 
         return ds_hr, ds_lr
 

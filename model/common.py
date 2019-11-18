@@ -9,6 +9,7 @@ def resolve(model, batch):
 def evaluate(model, dataset):
     snr_values = []
     for lr, hr in dataset:
+        lr, hr = tf.reshape(lr, [-1, lr.shape[1], 1]), tf.reshape(hr, [-1, hr.shape[1], 1])
         sr = model(lr)
         snr_value = snr(hr, sr)
         snr_values.append(snr_value)
