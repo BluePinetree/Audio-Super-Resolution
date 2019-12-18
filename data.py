@@ -54,11 +54,6 @@ class VCTK:
         ds = tf.data.Dataset.zip((ds_lr, ds_hr))
         ds = ds.map(lambda lr, hr : random_cropping(lr, hr, scale=self.scale), num_parallel_calls=AUTOTUNE)
 
-        # if not os.path.exists(self._get_cache_index()):
-        #     print(f'Caching decoded audios in {self._get_cache_file()}')
-        #     for _ in ds: pass
-        #     print(f'Cached decoded files in {self._get_cache_file()}')
-
         ds = ds.prefetch(buffer_size=AUTOTUNE)
         return ds
 
