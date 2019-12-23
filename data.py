@@ -4,12 +4,12 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
+import librosa
 from tensorflow.python.data.experimental import AUTOTUNE
 from time import sleep
 from scipy import signal, misc
-from scipy.io import wavfile
 from tqdm import tqdm
-from utils import play_sound, fourier_transform, VCTKSRSequence
+from utils import play_sound, fourier_transform, VCTKSRSequence, normalize
 
 class VCTK:
     def __init__(self,
@@ -18,7 +18,7 @@ class VCTK:
                  audio_dir='./VCTK-Corpus/wav48',
                  cache_dir='./VCTK-Corpus/caches',
                  val_dir='p376',
-                 max_fs=8000):
+                 max_fs=16000):
 
         # 크기 검사
         scales = [2,4]
@@ -52,7 +52,8 @@ class VCTK:
 
         # HR, LR 데이터를 튜플로 묶어 random_cropping
         ds = tf.data.Dataset.zip((ds_lr, ds_hr))
-        ds = ds.map(lambda lr, hr : random_cropping(lr, hr, scale=self.scale), num_parallel_calls=AUTOTUNE)
+        if self.subset == 'train':
+            ds = ds.map(lambda lr, hr : random_cropping(lr, hr, scale=self.scale, hr_crop_size=self.max_fs//2), num_parallel_calls=AUTOTUNE)
 
         ds = ds.prefetch(buffer_size=AUTOTUNE)
         return ds
@@ -101,8 +102,7 @@ class VCTK:
         print(f'Preprocessing {self.subset} data...')
         # for i, file in enumerate(tqdm(files)):
         for file in tqdm(files):
-            rate, data = wavfile.read(file)
-            # data = data[:len(data) - (len(data) % self.max_fs)]     # 나눠지게 자르고
+            data, rate = librosa.load(file, None)
             # 다운샘플링
             hr_factor = int(rate / self.max_fs)
             hr_data = self._decimate_audio(data, hr_factor)
@@ -125,7 +125,7 @@ class VCTK:
 
         # 파일로 저장
         h5_file = h5py.File(data_path, 'w')
-        dt = h5py.vlen_dtype(np.dtype('int16'))
+        dt = h5py.vlen_dtype(np.dtype('float32'))
         hr_dataset = h5_file.create_dataset('HR_data', shape=(len(hr_list),), dtype=dt)     # 가변길이 데이터셋 준비
         lr_dataset = h5_file.create_dataset('LR_data', shape=(len(lr_list),), dtype=dt)
         for i, d in enumerate(tqdm(hr_list)) :   hr_dataset[i] = d       # 데이터 삽입
