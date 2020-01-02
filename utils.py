@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 import pygame
@@ -27,7 +28,7 @@ def normalize(x):
     x = np.cast['float32'](x)
     return x / (2**15)
 
-def denormlaize(x):
+def denormalize(x):
     return np.cast['int16'](x * (2**15))
 
 # data generator
@@ -50,9 +51,9 @@ class VCTKSRSequence(tf.keras.utils.Sequence):
         for item in (self[i] for i in range(len(self))):
             yield item
 
-    # def __next__(self):
-    #     if self.n < len(self.data):
-    #         yield self.data[self.n]
-    #         self.n += 1
-    #     else:
-    #         raise StopIteration
+    def __next__(self):
+        if self.n < len(self.data):
+            yield self.data[self.n]
+            self.n += 1
+        else:
+            raise StopIteration
