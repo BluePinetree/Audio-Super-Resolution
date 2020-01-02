@@ -53,6 +53,7 @@ class VCTK:
         # HR, LR 데이터를 튜플로 묶어 random_cropping
         ds = tf.data.Dataset.zip((ds_lr, ds_hr))
         if self.subset == 'train':
+            print('Training dataset! ... implement random cropping')
             ds = ds.map(lambda lr, hr : random_cropping(lr, hr, scale=self.scale, hr_crop_size=self.max_fs//2), num_parallel_calls=AUTOTUNE)
 
         ds = ds.prefetch(buffer_size=AUTOTUNE)
